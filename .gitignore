@@ -1,0 +1,7 @@
+/todo/
+node_modules/
+dist/
+.wrangler/
+worker-configuration.d.ts
+public/verification-page.js
+/tests/

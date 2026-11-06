@@ -1,0 +1,45 @@
+{
+  "name": "dsc-verify",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-guild Discord admission gate on Cloudflare Workers.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "dev": "npm run build:web && wrangler dev",
+    "types:generate": "wrangler types --config wrangler.jsonc",
+    "build:web": "esbuild web/verification-page.ts --bundle --format=esm --target=es2022 --minify --legal-comments=none --outfile=public/verification-page.js",
+    "build": "npm run build:web && wrangler deploy --dry-run --outdir dist/worker --config wrangler.jsonc",
+    "typecheck": "tsc -p . && tsc -p web && tsc -p scripts",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run types:generate && npm run typecheck && npm run lint && npm run format:check && npm run build",
+    "tools:build": "esbuild scripts/commands-register.ts scripts/preflight.ts --bundle --platform=node --format=esm --outdir=dist/tools --out-extension:.js=.mjs --log-level=warning",
+    "commands:register": "npm run tools:build && node dist/tools/commands-register.mjs",
+    "preflight": "npm run tools:build && node dist/tools/preflight.mjs"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "printWidth": 100
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.5.0",
+    "@eslint/js": "10.0.1",
+    "@msw/cloudflare": "0.2.0",
+    "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "eslint": "10.14.0",
+    "eslint-config-prettier": "10.1.8",
+    "msw": "3.0.3",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.1.0",
+    "wrangler": "4.156.2"
+  }
+}

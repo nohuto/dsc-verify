@@ -1,0 +1,23 @@
+export const SESSION_TTL_MS = 15 * 60 * 1000;
+
+export const SESSION_START_WINDOW_MS = 10 * 60 * 1000;
+
+export const MAX_SESSION_STARTS_PER_WINDOW = 3;
+
+export const MAX_BROWSER_ATTEMPTS_PER_SESSION = 2;
+
+export const MAX_AUTHORIZATIONS_PER_ATTEMPT = 3;
+
+export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+export const OAUTH_CLAIM_LEASE_MS = 30 * 1000;
+
+export const SUBMISSION_LEASE_MS = 30 * 1000;
+
+export const CHALLENGE_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+
+export const MAX_CHALLENGE_FAILURES_PER_WINDOW = 5;
+
+export const STAFF_GRANT_DEADLINE_MS = 15 * 60 * 1000;
+
+export const MAX_REASON_LENGTH = 500;

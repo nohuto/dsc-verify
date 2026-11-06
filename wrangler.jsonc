@@ -1,0 +1,47 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // local development only
+  "name": "dsc-verify-local",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-02",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*", "/oauth/*", "/discord/*", "/health", "/source", "/support"],
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "VERIFICATION", "class_name": "VerificationCoordinator" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VerificationCoordinator"] }],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "invocation_logs": false },
+    "traces": { "enabled": false },
+  },
+  "vars": {
+    "ENVIRONMENT": "development",
+    "APP_ORIGIN": "http://localhost:8787",
+    "DISCORD_APPLICATION_ID": "100000000000000001",
+    "DISCORD_PUBLIC_KEY": "0000000000000000000000000000000000000000000000000000000000000000",
+    "DISCORD_GUILD_ID": "100000000000000002",
+    "DISCORD_MEMBER_ROLE_ID": "100000000000000003",
+    "DISCORD_VERIFICATION_CHANNEL_ID": "100000000000000004",
+    "DISCORD_LOG_CHANNEL_ID": "100000000000000005",
+    "DISCORD_STAFF_ROLE_IDS": "",
+    "DISCORD_PUNITIVE_ROLE_IDS": "",
+    "SUPPORT_URL": "https://example.com/support",
+    "SOURCE_URL": "https://example.com/source",
+    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+    "RELEASE": "local",
+  },
+  "secrets": {
+    "required": [
+      "DISCORD_BOT_TOKEN",
+      "DISCORD_CLIENT_SECRET",
+      "TURNSTILE_SECRET_KEY",
+      "CAPABILITY_SIGNING_KEY",
+    ],
+  },
+}

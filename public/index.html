@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex" />
+    <title>Server verification</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/verification-page.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1 id="heading" tabindex="-1">Server verification</h1>
+      <div role="status" aria-live="polite">
+        <p id="message">Checking your session.</p>
+        <p id="guidance" class="muted" hidden></p>
+      </div>
+      <div id="spinner" class="spinner" aria-hidden="true" hidden></div>
+      <div id="challenge" class="challenge" hidden></div>
+      <button id="action" class="button" type="button" hidden></button>
+      <noscript>
+        <p>This page needs JavaScript to finish verification. Turn it on, then reload.</p>
+      </noscript>
+    </main>
+    <footer>
+      <a href="/privacy">Privacy</a>
+      <a href="/source">Source code</a>
+      <a href="/support">Help</a>
+    </footer>
+  </body>
+</html>
