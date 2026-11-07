@@ -81,11 +81,12 @@ export function formatAuditMessage(
   const fields: { name: string; value: string; inline: boolean }[] = [
     { name: 'Outcome', value: `\`${event.outcome}\``, inline: true },
   ];
+  const user = (userId: string): string => `<@${userId}> \`${userId}\``;
   if (event.subjectId !== null) {
-    fields.push({ name: 'Member', value: `<@${event.subjectId}>`, inline: true });
+    fields.push({ name: 'Member', value: user(event.subjectId), inline: true });
   }
   if (event.actorId !== null) {
-    fields.push({ name: 'Staff', value: `<@${event.actorId}>`, inline: true });
+    fields.push({ name: 'Staff', value: user(event.actorId), inline: true });
   }
   if (event.reason !== null) {
     fields.push({ name: 'Reason', value: event.reason, inline: false });
