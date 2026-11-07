@@ -1,5 +1,3 @@
-// leases survive restarts, in-memory flags are never trusted
-
 import type { Store } from './sqlite';
 import { execute, selectAll, selectOne, updatedRows } from './sqlite';
 
@@ -31,7 +29,6 @@ type NewJob = {
   readonly eventId?: string;
   readonly payload?: string;
   readonly deadlineAt?: number | null;
-  // queue a finished job with the same key again, for keys that mean "make sure this runs"
   readonly revive?: boolean;
 };
 
@@ -102,8 +99,6 @@ export type JobRow = {
 const JOB_COLUMNS = `id, kind, user_id, joined_at, generation, role_revision, actor_id, session_id,
   event_id, payload, deadline_at, attempts, lease_id, mutation_state, created_at`;
 
-// expired running row is due again, with any in-flight mutation downgraded to uncertain because
-// its outcome was never recorded
 export function claimDueJob(store: Store, nowMs: number): JobRow | null {
   return store.transactionSync(() => {
     const job = selectOne<JobRow>(
@@ -220,7 +215,6 @@ function finishErasure(store: Store, userId: string, jobId: string): void {
   execute(store, 'DELETE FROM members WHERE user_id = ?', userId);
 }
 
-// run with a live lease may still be going, not due before the lease ends
 export function nextDueAt(store: Store): number | null {
   const due = selectOne<{ next: number | null }>(
     store,

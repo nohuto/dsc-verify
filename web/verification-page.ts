@@ -1,9 +1,6 @@
-// every network call goes through exclusive, requests never overlap
-
 import { CSRF_HEADER, ROUTES } from '../shared/browser-contract';
 import type { StatusResponse, TurnstileChallenge } from '../shared/browser-contract';
 import {
-  RESTART_GUIDANCE,
   describe,
   parseAuthorizeUrl,
   parseReply,
@@ -77,7 +74,7 @@ function setText(node: HTMLElement, value: string): void {
   if (node.textContent !== value) node.textContent = value;
 }
 
-// aria-disabled rather than disabled, because a disabled button drops keyboard focus
+// aria-disabled rather than disabled, as a disabled button drops keyboard focus
 function syncButton(): void {
   button.setAttribute('aria-disabled', String(busy || Date.now() < holdUntil));
 }
@@ -145,7 +142,7 @@ function restart(problem: Problem): void {
   paint({
     heading: 'Start again from Discord',
     message: withWait(problem.message, problem.retryAfterSeconds),
-    guidance: RESTART_GUIDANCE,
+    guidance: '',
   });
 }
 
@@ -183,7 +180,6 @@ function show(next: StatusResponse): void {
       }
       paint(view);
       widgetBox.hidden = false;
-      // backing off a rerun keeps an auto passing widget from hammering a failing server
       const delay = widgetId === undefined ? wait : Math.max(wait, pollDelay(tries++));
       timer = window.setTimeout(() => {
         paint(describe(settled));
@@ -230,7 +226,6 @@ function refresh(): void {
   });
 }
 
-// capability lives only in this closure, and only until the exchange settles
 function exchange(capability: string, mayRetry: boolean): void {
   exclusive(async () => {
     const fetched = await call(ROUTES.session, { capability });
@@ -266,7 +261,7 @@ function submit(token: string): void {
   exclusive(async () => {
     window.clearTimeout(timer);
     paint(
-      { heading: 'Checking your result', message: 'We are checking your result.', guidance: '' },
+      { heading: 'Checking your result', message: 'This takes a few seconds.', guidance: '' },
       undefined,
       true,
     );
@@ -296,9 +291,10 @@ function loadTurnstile(): Promise<Turnstile> {
 function widgetFailed(): void {
   paint(
     {
-      heading: 'Complete the browser check',
-      message: 'The browser check could not run.',
-      guidance: 'Turn off any content blocker for this page, then try again.',
+      heading: 'Browser check',
+      message:
+        "The browser check couldn't load, turn off content blockers for this page and try again.",
+      guidance: '',
     },
     {
       label: 'Try again',
@@ -319,7 +315,7 @@ function mountWidget(challenge: TurnstileChallenge): void {
         cData: challenge.cdata,
         callback: submit,
         'expired-callback': () => {
-          setText(message, 'The browser check expired and is refreshing.');
+          setText(message, "The browser check expired, it's refreshing now.");
         },
         'error-callback': widgetFailed,
       });

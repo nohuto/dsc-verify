@@ -61,7 +61,6 @@ export const COMMANDS: readonly CommandDefinition[] = [
     description: 'Manage member verification',
     contexts: [CONTEXT_GUILD],
     integration_types: [INTEGRATION_GUILD_INSTALL],
-    // controls visibility only, the backend authorizes every subcommand
     default_member_permissions: String(PERMISSION_MANAGE_GUILD),
     options: [
       {

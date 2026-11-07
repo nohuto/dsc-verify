@@ -1,6 +1,3 @@
-// interaction permissions are per channel and drop to almost nothing during a timeout, only good
-// for an early refusal
-
 import { getGuild, getGuildRoles } from '../providers/discord-rest';
 import type { RestContext, RestOutcome } from '../providers/discord-rest';
 import { computeGuildPermissions } from './staff-authority';

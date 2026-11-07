@@ -4,7 +4,9 @@ const EVENT_MARKER_PREFIX = 'verification-event:';
 
 const EVENT_ID_LENGTH = 24;
 
-const EMBED_COLOR_NEUTRAL = 0x5865f2;
+export const EMBED_COLOR_NEUTRAL = 0x0b0b0b;
+
+const DISCORD_CDN = 'https://cdn.discordapp.com';
 
 const EMBED_COLOR_ALERT = 0xed4245;
 
@@ -44,6 +46,20 @@ type AuditMessageInput = {
   readonly createdAtMs: number;
 };
 
+export type LogProfile = {
+  readonly userId: string;
+  readonly username: string;
+  readonly avatar: string | null;
+};
+
+// users without an avatar get discords default one
+function avatarUrl(profile: LogProfile): string {
+  if (profile.avatar !== null) {
+    return `${DISCORD_CDN}/avatars/${profile.userId}/${profile.avatar}.png?size=64`;
+  }
+  return `${DISCORD_CDN}/embed/avatars/${String((BigInt(profile.userId) >> 22n) % 6n)}.png`;
+}
+
 export function createEventId(): string {
   return crypto.randomUUID().replaceAll('-', '').slice(0, EVENT_ID_LENGTH);
 }
@@ -58,9 +74,12 @@ export function parseEventMarker(marker: string | null): string | null {
   return /^[0-9a-f]{24}$/.test(eventId) ? eventId : null;
 }
 
-export function formatAuditMessage(event: AuditMessageInput): { readonly embeds: unknown[] } {
+export function formatAuditMessage(
+  event: AuditMessageInput,
+  profile?: LogProfile,
+): { readonly embeds: unknown[] } {
   const fields: { name: string; value: string; inline: boolean }[] = [
-    { name: 'Outcome', value: event.outcome, inline: true },
+    { name: 'Outcome', value: `\`${event.outcome}\``, inline: true },
   ];
   if (event.subjectId !== null) {
     fields.push({ name: 'Member', value: `<@${event.subjectId}>`, inline: true });
@@ -75,6 +94,7 @@ export function formatAuditMessage(event: AuditMessageInput): { readonly embeds:
   return {
     embeds: [
       {
+        ...(profile && { author: { name: profile.username, icon_url: avatarUrl(profile) } }),
         title: KIND_TITLES[event.kind],
         color: ALERT_KINDS.has(event.kind) ? EMBED_COLOR_ALERT : EMBED_COLOR_NEUTRAL,
         fields,

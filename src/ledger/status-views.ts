@@ -1,4 +1,4 @@
-// read-only staff views, nothing here may write
+// nothing here may write
 
 import { readSettings } from './guild-settings';
 import { selectMember } from './member-intents';

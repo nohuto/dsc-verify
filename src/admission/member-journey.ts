@@ -43,25 +43,27 @@ type BrowserSession = {
   readonly digest: string;
 };
 
+const RESTART_HINT = 'use /verify in Discord to get a new link and finish it in the same browser.';
+
 const STATE_MESSAGES: Readonly<Record<VerificationState, string>> = {
-  awaiting_oauth: 'Sign in with the Discord account you use in this server.',
-  awaiting_challenge: 'Complete the check below to finish.',
-  validating: 'Checking your verification.',
-  grant_queued: 'Verified. Your access is being applied.',
-  verified: 'You are verified. You can return to Discord.',
-  blocked: 'Verification could not be completed. Contact staff if you need help.',
-  expired: 'This verification expired. Use /verify in Discord to start again.',
-  cancelled: 'This verification was cancelled. Use /verify in Discord to start again.',
+  awaiting_oauth: 'Sign in with the Discord account you use on this server.',
+  awaiting_challenge: 'Your account is confirmed, one browser check is left.',
+  validating: 'This takes a few seconds.',
+  grant_queued: 'You passed, your role is being added, this can take a moment.',
+  verified: 'Your role is added, you can close this page and go back to Discord.',
+  blocked:
+    "This verification can't continue, if you think that's a mistake, contact staff through 'Help' below.",
+  expired: `This verification has expired, ${RESTART_HINT}`,
+  cancelled: `This verification was cancelled, ${RESTART_HINT}`,
 };
 
 const CODE_MESSAGES: Partial<Readonly<Record<PublicCode, string>>> = {
-  wrong_account:
-    'You signed in with a different Discord account. Sign in with the account you use in this server.',
-  oauth_denied: 'Discord sign-in was cancelled. You can try again.',
-  oauth_failed: 'Discord sign-in could not be completed. You can try again.',
-  challenge_failed: 'The check did not pass. You can try again.',
-  challenge_unavailable: 'The check is temporarily unavailable. Please try again.',
-  rate_limited: 'Too many attempts. Please wait before trying again.',
+  wrong_account: "That's a different Discord account, sign in with the one you use on this server.",
+  oauth_denied: 'Discord sign-in was cancelled, you can try again.',
+  oauth_failed: "Discord sign-in didn't finish, you can try again.",
+  challenge_failed: "The browser check didn't pass, you can try again.",
+  challenge_unavailable: "The browser check isn't available right now, try again in a moment.",
+  rate_limited: 'Too many attempts.',
 };
 
 function capabilityOptions(context: JourneyContext) {
@@ -71,23 +73,23 @@ function capabilityOptions(context: JourneyContext) {
 function restartResponse(status: number): Response {
   return errorResponse(status, {
     code: 'restart_required',
-    message: 'This verification is no longer active. Use /verify in Discord to start again.',
+    message: `This verification is no longer active, ${RESTART_HINT}`,
   });
 }
 
 function invalidRequestResponse(): Response {
-  return errorResponse(400, { code: 'invalid_request', message: 'The request was not valid.' });
+  return errorResponse(400, { code: 'invalid_request', message: "The request wasn't valid." });
 }
 
 function forbiddenResponse(): Response {
-  return errorResponse(403, { code: 'forbidden', message: 'This request was not allowed.' });
+  return errorResponse(403, { code: 'forbidden', message: "This request wasn't allowed." });
 }
 
 function retryAfterSeconds(retryAfterMs: number): number {
   return Math.max(1, Math.ceil(retryAfterMs / 1000));
 }
 
-// fabricated or tampered cookies are rejected here, before any durable object call
+// fabricated/tampered cookies are rejected here, before any durable object call
 async function authenticateBrowser(
   request: Request,
   context: JourneyContext,
@@ -198,7 +200,7 @@ export async function handleEntryExchange(
     case 'exhausted':
       return errorResponse(429, {
         code: 'restart_required',
-        message: 'This link was already used twice. Use /verify in Discord for a new one.',
+        message: "This link can't be used again, use /verify in Discord to get a new one.",
       });
     case 'reused':
     case 'created':
@@ -259,12 +261,12 @@ export async function handleOAuthStart(
     case 'exhausted':
       return errorResponse(429, {
         code: 'restart_required',
-        message: 'Too many sign-in attempts. Use /verify in Discord to start again.',
+        message: 'Too many sign-in attempts, use /verify in Discord to start again.',
       });
     case 'busy':
       return errorResponse(409, {
         code: 'rate_limited',
-        message: 'A sign-in is still finishing. Please wait a moment.',
+        message: 'A sign-in is still finishing, wait a moment and try again.',
         retryAfterSeconds: 5,
       });
     case 'started': {

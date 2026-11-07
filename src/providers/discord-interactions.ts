@@ -1,5 +1,3 @@
-// unknown extra fields are ignored, malformed known fields reject
-
 import type { MemberSnapshot } from '../admission/admission-rules';
 import { bits, id, record, timestamp } from './discord-fields';
 

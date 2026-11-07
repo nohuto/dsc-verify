@@ -91,7 +91,6 @@ function eraseAuditEvent(
     event.id,
   );
   if (parseMessageIds(event.message_ids).length > 0) enqueueLogDelete(store, event.id, nowMs);
-  // post without a confirmed reply may still have landed, search the channel for it
   if (event.delivery_state !== 'delivered') enqueueErasureSearch(store, event.id, nowMs);
 }
 

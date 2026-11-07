@@ -263,7 +263,7 @@ function deriveStatus(attempt: AttemptRow, session: SessionRow, nowMs: number): 
   };
 }
 
-// read-only by design, bootstrap and status polling must never write to SQLite
+// read only, bootstrap and status polling must never write to SQLite
 export function readAttemptStatus(
   store: Store,
   browserDigest: string,
@@ -303,7 +303,7 @@ export function beginAuthorization(
       return { kind: 'exhausted' };
     }
 
-    // only the newest state stays valid, an expired claim is a failed attempt and is never revived
+    // only the newest state stays valid
     execute(
       store,
       `UPDATE attempts

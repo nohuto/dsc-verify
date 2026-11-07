@@ -88,7 +88,6 @@ export default {
     try {
       return await route(request, env, execution);
     } catch {
-      // provider errors never reach the response or the log, the path alone is safe to record
       console.error(
         JSON.stringify({ event: 'request_failed', detail: new URL(request.url).pathname }),
       );

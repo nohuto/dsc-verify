@@ -1,5 +1,3 @@
-// command visibility is never the security boundary
-
 const PERMISSION_ADMINISTRATOR = 1n << 3n;
 
 const PERMISSION_MANAGE_GUILD = 1n << 5n;

@@ -1,6 +1,3 @@
-// owns transactional state and every bot token mutation at runtime, keeps discord rate limits and
-// per member ordering consistent across worker isolates
-
 import { DurableObject } from 'cloudflare:workers';
 
 import { readConfig } from '../deployment-config';
@@ -257,7 +254,7 @@ export class VerificationCoordinator extends DurableObject<Env> {
     this.scheduleWake();
   }
 
-  // alarm = earliest due time in SQL, setAlarm without an await commits together with the rows
+  // alarm = earliest due time in SQL
   private scheduleWake(): void {
     const wakeAt = this.nextWakeAt();
     if (wakeAt === null) return;
@@ -322,7 +319,6 @@ export class VerificationCoordinator extends DurableObject<Env> {
     if (cleanupAt === null || cleanupAt > nowMs) return;
 
     const retainedData = runCleanup(this.store, nowMs, CLEANUP_BATCH_SIZE);
-    // day in the sweep key allows one per day, with nothing retained the object stays idle
     if (retainedData) requestLogSweep(this.store, nowMs);
     setNextCleanupAt(this.store, retainedData ? nowMs + CLEANUP_INTERVAL_MS : null);
   }

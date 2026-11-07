@@ -1,4 +1,4 @@
-// read-only, calls only the GET helpers and prints finding codes, never bodies
+// read only, calls only the GET helpers and prints finding codes, never bodies
 
 import { readConfig } from '../src/deployment-config.ts';
 import {

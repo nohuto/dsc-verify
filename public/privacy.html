@@ -11,81 +11,56 @@
   </head>
   <body>
     <main class="prose">
+      <a class="back" href="/">Back to verification</a>
       <h1>Privacy</h1>
       <p>
-        This page is for members of the Discord server that uses this verification service. The
-        service does handle personal data. This page says what it handles, who else is involved and
-        how long the data stays.
+        What the verification service of this Discord server handles, who else is involved and how
+        long the data stays.
       </p>
 
       <h2>What is processed</h2>
       <ul>
-        <li>Your Discord user ID.</li>
-        <li>Your account creation time, which is derived from that ID.</li>
-        <li>The time you joined the server.</li>
-        <li>Your role and restriction state in the server.</li>
-        <li>The outcome of your verification.</li>
+        <li>Your Discord user ID, and your account creation time, which comes from that ID</li>
+        <li>When you joined the server, and your roles and restrictions there</li>
+        <li>The outcome of your verification</li>
+        <li>Your username & avatar, shown in the private log but not stored here</li>
       </ul>
 
       <h2>How long it is kept</h2>
       <p>
-        Session data is short-lived and lasts about 15 minutes. Audit records and private log
-        messages have a 30-day retention target. Removal can be delayed if cleanup fails, and
-        cleanup is retried.
+        Session data lasts about 15 minutes. Audit records and private log messages are kept for 30
+        days, a failed cleanup is retried, which can delay removal.
       </p>
 
       <h2>Discord sign-in</h2>
       <p>
-        Discord sign-in requests only the <code>identify</code> scope, which is used to confirm that
-        you are the member who asked to verify. Tokens are used in memory and are not stored.
-        Revoking them is attempted after the identity check.
+        Sign-in only asks for the <code>identify</code> scope, to confirm you are the member who
+        started verification. Tokens are only used in memory, never stored, and the service tries to
+        revoke them after the check.
       </p>
 
-      <h2>Cloudflare Turnstile</h2>
+      <h2>Cloudflare & Discord</h2>
       <p>
-        Cloudflare Turnstile runs a challenge in your browser. To validate the result, your IP
-        address may be sent to Cloudflare Siteverify.
-      </p>
-
-      <h2>Cloudflare and Discord</h2>
-      <p>
-        Cloudflare and Discord process request, browser and account information under their own
-        policies. Their backups and logs have their own retention, which this service does not
-        control.
-      </p>
-
-      <h2>What this service does not collect</h2>
-      <ul>
-        <li>It does not collect your birth date or any identity document.</li>
-        <li>It does not fingerprint your browser.</li>
-        <li>It does not keep a database of IP history.</li>
-        <li>It does not keep a database of alternate accounts.</li>
-      </ul>
-
-      <h2>What verification means</h2>
-      <p>
-        Passing verification grants the ordinary member role. It is not a guarantee about a person.
-        Account age means the time elapsed since your Discord account was created. It is not your
-        age.
+        Cloudflare Turnstile runs the browser check, and your IP address may be sent to Cloudflare
+        to validate it. Cloudflare and Discord process request, browser and account data under their
+        own policies, including their own backups and logs, which this service doesn't control.
       </p>
 
       <h2>Deleting your data</h2>
       <p>
-        To ask for deletion, contact server staff through <a href="/support">Help</a>. Staff cancel
-        any pending admission and erase the matching app data and log copies. Deletion does not by
-        itself remove your access to the server, and it does not affect data held by Discord or
-        Cloudflare. If you are a staff member, records of actions you took on other members stay
-        until their normal 30-day deletion, so those actions remain accountable.
+        Ask staff through <a href="/support">Help</a>, they cancel any pending verification and
+        erase your app data and log copies. Your server access stays as it is, and data held by
+        Discord or Cloudflare isn't affected. If you are staff, records of actions you took on other
+        members stay until their normal 30 day deletion, so those actions stay accountable.
       </p>
 
       <h2>Source code</h2>
       <p>
-        This service is free software under the AGPL-3.0-only license. You can read the
-        <a href="/source">source code</a>.
+        Under AGPL-3.0-only license, the <a href="/source">source code</a> is public.
       </p>
     </main>
     <footer>
-      <a href="/privacy">Privacy</a>
+      <a href="/">Verification</a>
       <a href="/source">Source code</a>
       <a href="/support">Help</a>
     </footer>

@@ -144,15 +144,27 @@ a:focus-visible,
   color: var(--quiet);
 }
 
+.back {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: var(--quiet);
+  font-size: 0.875rem;
+}
+
+.back:hover {
+  color: var(--text);
+}
+
 .button {
-  min-height: 2.75rem;
+  min-height: 2.25rem;
   margin-top: 0.5rem;
-  padding: 0.5rem 1.25rem;
+  padding: 0.25rem 0.875rem;
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border-strong);
   border-radius: 0;
   font: inherit;
+  font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
   transition: border-color var(--motion);
@@ -251,9 +263,5 @@ footer a:hover {
 
   footer {
     padding: 0 1rem 1.25rem;
-  }
-
-  .button {
-    width: 100%;
   }
 }

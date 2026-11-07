@@ -1,5 +1,3 @@
-// no transaction spans SQLite and discord, these record intent and observation, never effect
-
 import { RECONCILE_FIRST_DELAY_MS } from '../coordinator/retry-schedule';
 import { STAFF_GRANT_DEADLINE_MS } from '../admission/admission-limits';
 import type { AuditKind } from '../audit/audit-events';
@@ -30,7 +28,6 @@ function hasUncertainRoleMutation(store: Store, userId: string): boolean {
   return pending !== undefined;
 }
 
-// one reconciliation job per member, a new uncertainty restarts its 5/30/120 second observations
 export function scheduleReconcile(
   store: Store,
   input: {
@@ -65,7 +62,6 @@ export function scheduleReconcile(
   });
 }
 
-// later authorized intent inherits outstanding uncertainty instead of ending its observation
 function restartOpenReconcile(store: Store, userId: string, nowMs: number): void {
   execute(
     store,

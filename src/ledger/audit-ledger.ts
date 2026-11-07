@@ -93,7 +93,7 @@ export function markLogPosting(store: Store, eventId: string, nowMs: number): vo
   );
 }
 
-// late result can only extend an existing row, it never recreates an erased or expired event
+// late result can only extend an existing row
 export function recordLogMessages(
   store: Store,
   eventId: string,

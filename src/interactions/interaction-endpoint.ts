@@ -1,5 +1,3 @@
-// signature covers the raw bytes, nothing is parsed before it verifies, PING needs no guild fields
-
 import { VERIFY_BUTTON_CUSTOM_ID } from '../../shared/slash-commands';
 import type { JourneyContext } from '../admission/member-journey';
 import { verifyInteractionSignature } from '../crypto/interaction-signature';
@@ -60,7 +58,7 @@ export async function handleDiscordInteraction(
     case 'ping':
       return pongReply();
     case 'unsupported':
-      return ephemeralReply({ content: 'That interaction is not supported.' });
+      return ephemeralReply({ content: "That interaction isn't supported." });
     case 'command':
     case 'component':
   }
@@ -73,7 +71,7 @@ export async function handleDiscordInteraction(
 
   if (interaction.type === 'component') {
     if (interaction.customId !== VERIFY_BUTTON_CUSTOM_ID) {
-      return ephemeralReply({ content: 'That control is not supported.' });
+      return ephemeralReply({ content: "That control isn't supported." });
     }
     return startMemberVerification({ operationId: interaction.id, member }, context);
   }

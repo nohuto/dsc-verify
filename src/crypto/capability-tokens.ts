@@ -1,6 +1,3 @@
-// valid envelope proves only that this service issued it, identity, ownership, revocation and
-// one-time use are decided by the coordinator
-
 import {
   decodeBase64Url,
   encodeBase64Url,

@@ -1,5 +1,3 @@
-// errors name settings only and never echo values, no imports here, node tooling runs this directly
-
 export type AppConfig = {
   readonly origin: string;
   readonly hostname: string;
@@ -31,7 +29,7 @@ const PUBLIC_KEY_PATTERN = /^[0-9a-f]{64}$/;
 const SIGNING_KEY_PATTERN = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/;
 const RELEASE_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
 const PLACEHOLDER_PATTERN = /REPLACE_WITH|example\.(com|org|net|test)|^0+$/i;
-// published cloudflare dummy sitekeys and secrets start with 1x, 2x or 3x
+// published cloudflare dummy sitekeys and secrets start with 1x, 2x, 3x
 const TURNSTILE_TEST_KEY_PATTERN = /^[123]x0000000000000000/;
 
 function readString(raw: Readonly<Record<string, unknown>>, name: string): string | null {

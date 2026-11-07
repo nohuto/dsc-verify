@@ -18,13 +18,11 @@ const POLL_GROWTH = 1.5;
 // keeps server supplied wait inside the range setTimeout can represent
 const MAX_WAIT_SECONDS = 86_400;
 
-const GENERIC_ERROR = 'Something went wrong. Please try again.';
+const GENERIC_ERROR = 'Something went wrong, please try again.';
 const NETWORK_ERROR =
-  'We could not reach the verification service. Check your connection and try again.';
-const SESSION_LOST = 'We could not find an active verification session in this browser.';
-
-export const RESTART_GUIDANCE =
-  'Use /verify in Discord to get a new link, then finish in the same browser. Discord in-app browsers or switching to a different browser lose the session.';
+  "The verification service can't be reached, check your connection and try again.";
+const SESSION_LOST =
+  "There's no active verification in this browser, use /verify in Discord to get a new link and finish it in the same browser.";
 
 export type Phase = 'oauth' | 'challenge' | 'progress' | 'final';
 
@@ -39,50 +37,53 @@ const VIEWS: Record<VerificationState, View> = {
   awaiting_oauth: {
     phase: 'oauth',
     heading: 'Sign in with Discord',
-    message: 'Confirm which Discord account is verifying.',
-    guidance: 'Use the same Discord account you use in the server.',
+    message: 'Sign in with the Discord account you use on this server.',
+    guidance: '',
   },
   awaiting_challenge: {
     phase: 'challenge',
-    heading: 'Complete the browser check',
-    message: 'Your account is confirmed. One browser check is left.',
-    guidance: 'This usually finishes by itself. If a checkbox appears, select it.',
+    heading: 'Browser check',
+    message: 'Your account is confirmed, one quick browser check is left.',
+    guidance: 'It usually passes by itself, if a checkbox shows up, select it.',
   },
   validating: {
     phase: 'progress',
     heading: 'Checking your result',
-    message: 'We are checking your result.',
-    guidance: 'This usually takes a few seconds. You can leave this page open.',
+    message: 'This takes a few seconds.',
+    guidance: '',
   },
   grant_queued: {
     phase: 'progress',
-    heading: 'Setting up your access',
-    message: 'Your check passed and your role is being added.',
-    guidance: 'This can take a moment. You can leave this page open.',
+    heading: 'Adding your role',
+    message: 'You passed, your role is being added, this can take a moment.',
+    guidance: '',
   },
   verified: {
     phase: 'final',
     heading: 'You are verified',
-    message: 'Your access is ready.',
-    guidance: 'You can close this page and return to Discord.',
+    message: 'Your role is added, you can close this page and go back to Discord.',
+    guidance: '',
   },
   blocked: {
     phase: 'final',
-    heading: 'Verification could not continue',
-    message: 'This verification cannot continue.',
-    guidance: 'If you think this is a mistake, contact server staff through Help below.',
+    heading: 'Verification stopped',
+    message:
+      "This verification can't continue, if you think that's a mistake, contact staff through Help below.",
+    guidance: '',
   },
   expired: {
     phase: 'final',
-    heading: 'This session has ended',
-    message: 'This verification session has expired.',
-    guidance: RESTART_GUIDANCE,
+    heading: 'Link expired',
+    message:
+      'This verification has expired, use /verify in Discord to get a new link and finish it in the same browser.',
+    guidance: '',
   },
   cancelled: {
     phase: 'final',
-    heading: 'Verification was cancelled',
-    message: 'This verification session was cancelled.',
-    guidance: RESTART_GUIDANCE,
+    heading: 'Verification cancelled',
+    message:
+      'This verification was cancelled, use /verify in Discord to get a new link and finish it in the same browser.',
+    guidance: '',
   },
 };
 

@@ -166,7 +166,6 @@ async function applyGrant(
   switch (result.kind) {
     case 'ok': {
       if (!isLatestIntent(readRoleIntent(store, member.userId), job)) {
-        // reset won the race while the PUT was in flight, reconcile the role away
         scheduleReconcile(store, {
           userId: member.userId,
           joinedAtMs: member.joinedAtMs,
@@ -475,7 +474,6 @@ export async function runReconcileJob(context: JobContext, job: JobRow): Promise
   const intent = readRoleIntent(store, userId);
   const desired = intent?.desired ?? null;
   const hasRole = hasAccessRole(context, member);
-  // without an authorized intent a late grant is escalated, never removed or taken as resolved
   if (desired === null) return advanceReconcile(context, job, !hasRole);
   if (hasRole === (desired === 'present')) return advanceReconcile(context, job, true);
 

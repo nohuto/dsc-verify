@@ -3,11 +3,14 @@
 
 import {
   AUDIT_RETENTION_MS,
+  EMBED_COLOR_NEUTRAL,
   formatAuditMessage,
   isAuditKind,
   isRetentionExpired,
   parseEventMarker,
 } from '../audit/audit-events';
+import type { LogProfile } from '../audit/audit-events';
+import { MINIMUM_ACCOUNT_AGE_MS } from '../admission/admission-rules';
 import {
   deleteAuditEvent,
   enqueueLogReconcile,
@@ -28,6 +31,7 @@ import {
   createMessage,
   deleteMessage,
   editMessage,
+  getUser,
   listChannelMessages,
 } from '../providers/discord-rest';
 import type { ChannelMessage, RestOutcome } from '../providers/discord-rest';
@@ -58,21 +62,32 @@ function sortOldestFirst(messages: readonly ChannelMessage[]): ChannelMessage[] 
   return [...messages].sort((left, right) => (BigInt(left.id) < BigInt(right.id) ? -1 : 1));
 }
 
-function audienceMessage(event: AuditRow) {
+function audienceMessage(event: AuditRow, profile: LogProfile | undefined) {
   if (!isAuditKind(event.kind)) throw new Error('unknown audit kind');
-  return formatAuditMessage({
-    id: event.id,
-    kind: event.kind,
-    subjectId: event.subject_id,
-    actorId: event.actor_id,
-    outcome: event.outcome,
-    reason: event.reason,
-    createdAtMs: event.created_at,
-  });
+  return formatAuditMessage(
+    {
+      id: event.id,
+      kind: event.kind,
+      subjectId: event.subject_id,
+      actorId: event.actor_id,
+      outcome: event.outcome,
+      reason: event.reason,
+      createdAtMs: event.created_at,
+    },
+    profile,
+  );
+}
+
+async function readProfile(context: JobContext, userId: string): Promise<LogProfile | undefined> {
+  const user = await getUser(context.rest, userId);
+  return user.kind === 'ok' ? { userId, ...user.value } : undefined;
 }
 
 export async function runLogPostJob(context: JobContext, job: JobRow): Promise<JobRunResult> {
   const { store, config, rest } = context;
+  const queued = job.event_id === null ? null : readAuditEvent(store, job.event_id);
+  const profileId = queued?.subject_id ?? queued?.actor_id ?? null;
+  const profile = profileId === null ? undefined : await readProfile(context, profileId);
   const event = job.event_id === null ? null : readAuditEvent(store, job.event_id);
   const nowMs = context.nowMs();
   if (event === null) {
@@ -97,7 +112,7 @@ export async function runLogPostJob(context: JobContext, job: JobRow): Promise<J
   const result = await createMessage(rest, {
     channelId: config.logChannelId,
     nonce: event.id,
-    payload: audienceMessage(event),
+    payload: audienceMessage(event, profile),
   });
   const settledAt = context.nowMs();
 
@@ -174,7 +189,7 @@ export async function runLogReconcileJob(context: JobContext, job: JobRow): Prom
   const nowMs = context.nowMs();
   const latest = readAuditEvent(store, event.id);
   const hasCopies = latest !== null && parseMessageIds(latest.message_ids).length > 0;
-  // erasure search that finds nothing is the good outcome, not a delivery problem
+  // erasure search that finds nothing is the good outcome
   const settled = hasCopies || latest?.delivery_state === 'erasing';
   if (!hasCopies) setLogDeliveryState(store, event.id, 'unresolved');
   finishJob(store, job, {
@@ -290,7 +305,6 @@ export async function runLogSweepJob(context: JobContext, job: JobRow): Promise<
         if (deleted.kind === 'ok' || deleted.kind === 'not_found') {
           removeLogMessage(store, eventId, message.id);
         } else if (deleted.kind !== 'forbidden' && deleted.kind !== 'rejected') {
-          // transient failure, cursor stays before this copy for the next sweep to retry
           return finishSweep('cancelled', 'sweep_deferred');
         }
       }
@@ -314,14 +328,26 @@ function continueLogJob(context: JobContext, job: JobRow): JobRunResult {
   return 'continue';
 }
 
-function panelMessage() {
+const MINIMUM_ACCOUNT_AGE_DAYS = MINIMUM_ACCOUNT_AGE_MS / (24 * 60 * 60 * 1000);
+
+// content is empty on purpose
+function panelMessage(origin: string) {
   return {
-    content:
-      'Verify to unlock the server. You will sign in with Discord and complete a quick check.',
+    content: '',
+    embeds: [
+      {
+        title: 'Server verification',
+        description: `Verify to get access to the server. You sign in with Discord and pass a quick browser check, it takes about a minute.\n\nYour account must be at least ${String(MINIMUM_ACCOUNT_AGE_DAYS)} days old.`,
+        color: EMBED_COLOR_NEUTRAL,
+      },
+    ],
     components: [
       {
         type: 1,
-        components: [{ type: 2, style: 1, label: 'Verify', custom_id: VERIFY_BUTTON_CUSTOM_ID }],
+        components: [
+          { type: 2, style: 2, label: 'Verify', custom_id: VERIFY_BUTTON_CUSTOM_ID },
+          { type: 2, style: 5, label: 'Privacy', url: `${origin}/privacy` },
+        ],
       },
     ],
   };
@@ -340,7 +366,7 @@ export async function runPanelJob(context: JobContext, job: JobRow): Promise<Job
     const edited = await editMessage(rest, {
       channelId,
       messageId: settings.panel_message_id,
-      payload: panelMessage(),
+      payload: panelMessage(context.config.origin),
     });
     if (edited.kind === 'ok') {
       finishJob(store, job, { state: 'done', result: 'updated', nowMs: context.nowMs() });
@@ -353,7 +379,7 @@ export async function runPanelJob(context: JobContext, job: JobRow): Promise<Job
   const created = await createMessage(rest, {
     channelId,
     nonce: job.id.replaceAll('-', '').slice(0, 25),
-    payload: panelMessage(),
+    payload: panelMessage(context.config.origin),
   });
   if (created.kind === 'ok') {
     recordPanel(store, channelId, created.value.messageId);

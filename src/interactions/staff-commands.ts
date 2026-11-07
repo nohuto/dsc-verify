@@ -1,7 +1,3 @@
-// command visibility is only a convenience, channel permissions from the signed payload give an
-// instant refusal, then the reply is deferred and every subcommand is authorized again on guild
-// roles, and delayed work rechecks authority once more
-
 import { MAX_REASON_LENGTH } from '../admission/admission-limits';
 import { decideAdmission } from '../admission/admission-rules';
 import type { JourneyContext } from '../admission/member-journey';
@@ -18,10 +14,10 @@ import { authorizeStaffAction } from '../staff/staff-authority';
 import type { StaffAction, StaffActor } from '../staff/staff-authority';
 import { deferredEphemeralReply, ephemeralReply, EPHEMERAL_FLAG } from './interaction-replies';
 
-const NOT_ALLOWED = 'You are not allowed to do that.';
+const NOT_ALLOWED = "You aren't allowed to do that.";
 const ALREADY_HANDLED = 'That request was already handled.';
-const CHECK_UNAVAILABLE = 'Discord did not answer the permission check. Try again shortly.';
-const MEMBER_AND_REASON = 'A member and a reason of 1 to 500 characters are required.';
+const CHECK_UNAVAILABLE = "Discord didn't answer the permission check, try again in a moment.";
+const MEMBER_AND_REASON = 'This needs a member and a reason of up to 500 characters.';
 
 type StaffRequest = {
   readonly interaction: CommandInteraction;
@@ -111,8 +107,6 @@ async function finishStaffCommand(request: StaffRequest, context: JourneyContext
   });
 }
 
-// interaction permissions are per channel and shrink during a timeout, guild roles decide for actor
-// and target
 async function authorizeAndRun(request: StaffRequest, context: JourneyContext): Promise<string> {
   const { config } = context;
   const guild = await readGuildAuthority({ botToken: config.discordBotToken }, config.guildId);
@@ -149,13 +143,13 @@ async function authorizeAndRun(request: StaffRequest, context: JourneyContext): 
 async function runPanel(request: StaffRequest, context: JourneyContext): Promise<string> {
   const channelId = request.interaction.options.get('channel');
   if (channelId !== context.config.verificationChannelId) {
-    return 'The panel belongs in the configured verification channel.';
+    return 'Post the panel in the configured verification channel.';
   }
   const result = await context.coordinator.requestPanel({
     operationId: request.interaction.id,
     channelId,
   });
-  return result.kind === 'queued' ? 'The panel update is queued.' : ALREADY_HANDLED;
+  return result.kind === 'queued' ? 'The panel shows up in a few seconds.' : ALREADY_HANDLED;
 }
 
 function describeRoleWork(status: MemberStatus): string {
@@ -200,7 +194,7 @@ async function runApprove(request: StaffRequest, context: JourneyContext): Promi
   const { interaction, target } = request;
   const reason = readReason(interaction);
   if (target === null || reason === null) return MEMBER_AND_REASON;
-  if (target.member === null) return 'That member is not in the server.';
+  if (target.member === null) return "That member isn't in the server.";
 
   const decision = decideAdmission({
     member: target.member,
@@ -215,7 +209,7 @@ async function runApprove(request: StaffRequest, context: JourneyContext): Promi
     const status = await context.coordinator.readMemberStatus(target.userId);
     if (status.desiredRole !== 'absent') return 'That member already has access.';
   }
-  if (decision.outcome === 'blocked') return `That member is blocked: ${decision.reason}.`;
+  if (decision.outcome === 'blocked') return `That member is blocked (\`${decision.reason}\`).`;
 
   const result = await context.coordinator.approveMember({
     operationId: interaction.id,
@@ -224,7 +218,7 @@ async function runApprove(request: StaffRequest, context: JourneyContext): Promi
     actorId: request.actor.userId,
     reason,
   });
-  return result.kind === 'queued' ? 'Approval queued.' : ALREADY_HANDLED;
+  return result.kind === 'queued' ? 'Approved, the role is being added.' : ALREADY_HANDLED;
 }
 
 async function runReset(request: StaffRequest, context: JourneyContext): Promise<string> {
@@ -243,15 +237,15 @@ async function runReset(request: StaffRequest, context: JourneyContext): Promise
     case 'duplicate':
       return ALREADY_HANDLED;
     case 'queued':
-      return 'Reset queued. Use /verification status to see when removal is observed.';
+      return 'Reset started, /verification status shows when the role is removed.';
     case 'queued_with_uncertainty':
-      return 'Reset queued. An earlier role change has an unknown outcome, so removal is being watched for a late effect.';
+      return 'Reset started, an earlier role change had an unknown result, so the bot also watches for a late change.';
   }
 }
 
 async function runPause(request: StaffRequest, context: JourneyContext): Promise<string> {
   const reason = readReason(request.interaction);
-  if (reason === null) return 'A reason of 1 to 500 characters is required.';
+  if (reason === null) return 'This needs a reason of up to 500 characters.';
   const result = await context.coordinator.pauseVerification({
     operationId: request.interaction.id,
     actorId: request.actor.userId,
@@ -267,11 +261,11 @@ function describeResume(result: ResumeResult): string {
     case 'duplicate':
       return ALREADY_HANDLED;
     case 'superseded':
-      return 'A newer pause arrived during preflight, so admission stays paused.';
+      return 'A newer pause came in during preflight, admission stays paused.';
     case 'preflight_unavailable':
-      return 'Preflight could not reach Discord, so admission stays paused. Try again shortly.';
+      return "Preflight couldn't reach Discord, admission stays paused, try again in a moment.";
     case 'preflight_failed':
-      return `Preflight failed, so admission stays paused: ${result.codes.join(', ')}`;
+      return `Preflight found problems, admission stays paused: ${result.codes.map((code) => `\`${code}\``).join(', ')}`;
   }
 }
 
@@ -279,13 +273,13 @@ async function runDeleteData(request: StaffRequest, context: JourneyContext): Pr
   const { interaction, target } = request;
   if (target === null || readReason(interaction) === null) return MEMBER_AND_REASON;
 
-  // reason is required as a deliberate step but never stored, it could re-identify the subject
+  // reason is required as a deliberate step but never stored, it could reidentify the subject
   const result = await context.coordinator.eraseMember({
     operationId: interaction.id,
     userId: target.userId,
     actorId: request.actor.userId,
   });
   return result.kind === 'queued'
-    ? 'Erasure started. Log copies are removed as cleanup completes. Server access is unchanged.'
+    ? 'Erasure started, log copies are removed as cleanup runs and server access stays the same.'
     : ALREADY_HANDLED;
 }

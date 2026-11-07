@@ -1,6 +1,3 @@
-// only the coordinator sends bot token mutations through these, staff guild check and preflight
-// only read
-
 import type { MemberSnapshot } from '../admission/admission-rules';
 import { bits, id, record } from './discord-fields';
 import { decodeMember, optionalId } from './discord-interactions';
@@ -52,6 +49,8 @@ export type ChannelSummary = {
   readonly guildId: string | null;
   readonly overwrites: readonly ChannelOverwrite[];
 };
+
+export type UserProfile = { readonly username: string; readonly avatar: string | null };
 
 export type ChannelMessage = {
   readonly id: string;
@@ -290,6 +289,21 @@ export function getCurrentUserId(context: RestContext): Promise<RestOutcome<stri
   return botRequest(context, '/users/@me', 'GET', (value) =>
     record(value) && id(value['id']) ? value['id'] : null,
   );
+}
+
+// avatar hash ends up in a cdn url
+function decodeUser(value: unknown): UserProfile | null {
+  if (!record(value)) return null;
+  const username = value['username'];
+  const avatar = value['avatar'] ?? null;
+  if (typeof username !== 'string' || username.length < 1 || username.length > 32) return null;
+  if (avatar !== null && (typeof avatar !== 'string' || !/^(a_)?[0-9a-f]{32}$/.test(avatar)))
+    return null;
+  return { username, avatar };
+}
+
+export function getUser(context: RestContext, userId: string): Promise<RestOutcome<UserProfile>> {
+  return botRequest(context, `/users/${pathId(userId)}`, 'GET', decodeUser);
 }
 
 function messageBody(payload: DiscordMessagePayload): Record<string, unknown> {

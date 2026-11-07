@@ -7,7 +7,6 @@ import { execute, selectOne } from './sqlite';
 type SettingsRow = {
   paused: number;
   pause_reason: string | null;
-  // bumped by every pause or resume, a slow resume uses it to detect a newer pause
   pause_revision: number;
   panel_channel_id: string | null;
   panel_message_id: string | null;
