@@ -336,7 +336,7 @@ function panelMessage(origin: string) {
     content: '',
     embeds: [
       {
-        title: 'Server verification',
+        title: 'Verification',
         description: `Verify to get access to the server. You sign in with Discord and pass a quick browser check, it takes about a minute.\n\nYour account must be at least ${String(MINIMUM_ACCOUNT_AGE_DAYS)} days old.`,
         color: EMBED_COLOR_NEUTRAL,
       },

@@ -43,7 +43,8 @@ type BrowserSession = {
   readonly digest: string;
 };
 
-const RESTART_HINT = 'use /verify in Discord to get a new link and finish it in the same browser.';
+const RESTART_HINT =
+  'press "Verify" in Discord to get a new link and finish it in the same browser.';
 
 const STATE_MESSAGES: Readonly<Record<VerificationState, string>> = {
   awaiting_oauth: 'Sign in with the Discord account you use on this server.',
@@ -200,7 +201,7 @@ export async function handleEntryExchange(
     case 'exhausted':
       return errorResponse(429, {
         code: 'restart_required',
-        message: "This link can't be used again, use /verify in Discord to get a new one.",
+        message: "This link can't be used again, press 'Verify' in Discord to get a new one.",
       });
     case 'reused':
     case 'created':
@@ -261,7 +262,7 @@ export async function handleOAuthStart(
     case 'exhausted':
       return errorResponse(429, {
         code: 'restart_required',
-        message: 'Too many sign-in attempts, use /verify in Discord to start again.',
+        message: 'Too many sign-in attempts, press "Verify" in Discord to start again.',
       });
     case 'busy':
       return errorResponse(409, {

@@ -11,14 +11,14 @@ import { ephemeralReply } from './interaction-replies';
 const BLOCK_MESSAGES: Readonly<Record<AdmissionBlockReason, string>> = {
   bot_account: "Bots can't verify.",
   guest_member: "Guest members can't verify, join the server as a full member first.",
-  pending_screening: 'Accept the server rules first, then use /verify again.',
+  pending_screening: 'Accept the server rules first, then press "Verify" again.',
   timed_out: "You can't verify while you're timed out.",
   punitive_role: 'Your account is restricted on this server, contact staff if you need help.',
   quarantined: 'AutoMod has restricted your account, update your profile or contact staff.',
   paused: 'Verification is paused right now, try again later.',
-  join_changed: 'Your server membership changed, use /verify again.',
-  generation_changed: 'This verification was reset, use /verify again.',
-  expired: 'This verification expired, use /verify again.',
+  join_changed: 'Your server membership changed, press "Verify" again.',
+  generation_changed: 'This verification was reset, press "Verify" again.',
+  expired: 'This verification expired, press "Verify" again.',
 };
 
 // f = full date and time, R = relative ("in 5 minutes")

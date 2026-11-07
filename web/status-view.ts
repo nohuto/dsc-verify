@@ -22,7 +22,7 @@ const GENERIC_ERROR = 'Something went wrong, please try again.';
 const NETWORK_ERROR =
   "The verification service can't be reached, check your connection and try again.";
 const SESSION_LOST =
-  "There's no active verification in this browser, use /verify in Discord to get a new link and finish it in the same browser.";
+  "There's no active verification in this browser, press 'Verify' in Discord to get a new link and finish it in the same browser.";
 
 export type Phase = 'oauth' | 'challenge' | 'progress' | 'final';
 
@@ -68,21 +68,21 @@ const VIEWS: Record<VerificationState, View> = {
     phase: 'final',
     heading: 'Verification stopped',
     message:
-      "This verification can't continue, if you think that's a mistake, contact staff through Help below.",
+      "This verification can't continue, if you think that's a mistake, contact staff through 'Help' below.",
     guidance: '',
   },
   expired: {
     phase: 'final',
     heading: 'Link expired',
     message:
-      'This verification has expired, use /verify in Discord to get a new link and finish it in the same browser.',
+      'This verification has expired, press "Verify" in Discord to get a new link and finish it in the same browser.',
     guidance: '',
   },
   cancelled: {
     phase: 'final',
     heading: 'Verification cancelled',
     message:
-      'This verification was cancelled, use /verify in Discord to get a new link and finish it in the same browser.',
+      'This verification was cancelled, press "Verify" in Discord to get a new link and finish it in the same browser.',
     guidance: '',
   },
 };
