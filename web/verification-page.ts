@@ -12,6 +12,7 @@ import {
   withWait,
 } from './status-view';
 import type { Fetched, Phase, Problem, Reply, View } from './status-view';
+import { mountArt } from './substrate-art';
 
 const TURNSTILE_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 // above the 8 second server upstream timeout, a slow provider must not look offline
@@ -348,4 +349,13 @@ if (entry === undefined) {
 } else {
   history.replaceState(null, '', location.pathname);
   exchange(entry, true);
+}
+
+// waits for idle so it never delays the verification requests
+const art = document.querySelector<HTMLElement>('.art');
+const main = document.querySelector('main');
+if (art && main) {
+  const start = (): void => mountArt(art, main);
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 2000 });
+  else window.setTimeout(start, 200);
 }
