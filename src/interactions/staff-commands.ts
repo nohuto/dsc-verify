@@ -1,4 +1,4 @@
-import { MAX_REASON_LENGTH } from '../admission/admission-limits';
+import { MAX_REASON_LENGTH } from '../../shared/slash-commands';
 import { decideAdmission } from '../admission/admission-rules';
 import type { JourneyContext } from '../admission/member-journey';
 import type { ResumeResult } from '../coordinator/verification-coordinator';
@@ -12,11 +12,12 @@ import { editOriginalInteractionResponse } from '../providers/discord-rest';
 import { guildStaffActor, readGuildAuthority } from '../staff/guild-authority';
 import { authorizeStaffAction } from '../staff/staff-authority';
 import type { StaffAction, StaffActor } from '../staff/staff-authority';
-import { deferredEphemeralReply, ephemeralReply, EPHEMERAL_FLAG } from './interaction-replies';
+import { deferredEphemeralReply, ephemeralReply } from './interaction-replies';
 
 const NOT_ALLOWED = "You aren't allowed to do that.";
 const ALREADY_HANDLED = 'That request was already handled.';
 const CHECK_UNAVAILABLE = "Discord didn't answer the permission check, try again in a moment.";
+const COMMAND_FAILED = 'Something went wrong, check /verification status before trying again.';
 const MEMBER_AND_REASON = 'This needs a member and a reason of up to 500 characters.';
 
 type StaffRequest = {
@@ -90,21 +91,25 @@ export function handleStaffCommand(
     return ephemeralReply({ content: NOT_ALLOWED });
   }
 
-  context.execution.waitUntil(
-    finishStaffCommand(request, context).catch(() => {
-      console.error(JSON.stringify({ event: 'staff_command_failed', detail: action }));
-    }),
-  );
+  context.execution.waitUntil(finishStaffCommand(request, context));
   return deferredEphemeralReply();
 }
 
+// staff always get an answer
 async function finishStaffCommand(request: StaffRequest, context: JourneyContext): Promise<void> {
-  const content = await authorizeAndRun(request, context);
-  await editOriginalInteractionResponse({
+  const content = await authorizeAndRun(request, context).catch(() => {
+    console.error(JSON.stringify({ event: 'staff_command_failed', detail: request.action }));
+    return COMMAND_FAILED;
+  });
+  // the deferral already made the reply private, an edit cant change that
+  const edited = await editOriginalInteractionResponse({
     applicationId: context.config.applicationId,
     interactionToken: request.interaction.token,
-    payload: { content, flags: EPHEMERAL_FLAG },
+    payload: { content },
   });
+  if (edited === 'failed') {
+    console.error(JSON.stringify({ event: 'staff_reply_failed', detail: request.action }));
+  }
 }
 
 async function authorizeAndRun(request: StaffRequest, context: JourneyContext): Promise<string> {

@@ -20,7 +20,7 @@ export type AppConfig = {
   readonly capabilitySigningKey: string;
 };
 
-export type ConfigResult =
+type ConfigResult =
   | { readonly ok: true; readonly config: AppConfig }
   | { readonly ok: false; readonly invalid: readonly string[] };
 

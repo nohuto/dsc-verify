@@ -1,8 +1,8 @@
 import { parseSeconds } from './canonical-encoding';
 
-export type SignatureRejection = 'malformed' | 'stale' | 'invalid';
+type SignatureRejection = 'malformed' | 'stale' | 'invalid';
 
-export type SignatureResult =
+type SignatureResult =
   { readonly ok: true } | { readonly ok: false; readonly reason: SignatureRejection };
 
 function decodeHex(text: string): Uint8Array {

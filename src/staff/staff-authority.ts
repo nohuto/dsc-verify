@@ -24,11 +24,11 @@ export type StaffActor = {
   readonly roleIds: readonly string[];
 };
 
-export type StaffAuthorization =
+type StaffAuthorization =
   | { readonly allowed: true }
   | { readonly allowed: false; readonly reason: 'forbidden' | 'protected_target' };
 
-export type StaffAuthorizationInput = {
+type StaffAuthorizationInput = {
   readonly action: StaffAction;
   readonly actor: StaffActor;
   readonly staffRoleIds: readonly string[];

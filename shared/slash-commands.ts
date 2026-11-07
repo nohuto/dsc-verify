@@ -2,6 +2,9 @@
 
 export const VERIFY_BUTTON_CUSTOM_ID = 'verification:start';
 
+// discord enforces it in the client, the server checks it again
+export const MAX_REASON_LENGTH = 500;
+
 const COMMAND_TYPE_CHAT_INPUT = 1;
 const OPTION_TYPE_SUB_COMMAND = 1;
 const OPTION_TYPE_STRING = 3;
@@ -43,7 +46,7 @@ const REASON_OPTION: CommandOption = {
   description: 'Reason recorded in the audit log',
   required: true,
   min_length: 1,
-  max_length: 500,
+  max_length: MAX_REASON_LENGTH,
 };
 
 export const COMMANDS: readonly CommandDefinition[] = [

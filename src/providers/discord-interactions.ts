@@ -31,7 +31,7 @@ export type ComponentInteraction = InteractionBase & {
   readonly customId: string;
 };
 
-export type Interaction =
+type Interaction =
   | { readonly type: 'ping' }
   | CommandInteraction
   | ComponentInteraction

@@ -226,17 +226,19 @@ function refresh(): void {
   });
 }
 
-function exchange(capability: string, mayRetry: boolean): void {
+function exchange(capability: string): void {
   exclusive(async () => {
     const fetched = await call(ROUTES.session, { capability });
     const reply = parseReply(fetched);
     if ('status' in reply) show(reply.status);
-    else if (!fetched && mayRetry) {
+    else if (reply.problem.restart) restart(reply.problem);
+    else {
+      const heading = fetched ? 'Something went wrong' : 'Connection problem';
       paint(
-        { heading: 'Connection problem', message: reply.problem.message, guidance: '' },
-        { label: 'Try again', run: () => exchange(capability, false) },
+        { heading, message: reply.problem.message, guidance: '' },
+        { label: 'Try again', run: () => exchange(capability) },
       );
-    } else restart(reply.problem);
+    }
   });
 }
 
@@ -265,7 +267,8 @@ function submit(token: string): void {
       undefined,
       true,
     );
-    apply(parseReply(await call(ROUTES.verify, { token })));
+    // a lost reply may hide a queued grant, the session read tells, a second submit would not
+    apply(parseReply((await call(ROUTES.verify, { token })) ?? (await call(ROUTES.session))));
   });
 }
 
@@ -344,7 +347,7 @@ if (entry === undefined) {
   refresh();
 } else {
   history.replaceState(null, '', location.pathname);
-  exchange(entry, true);
+  exchange(entry);
 }
 
 // waits for idle so it never delays the verification requests

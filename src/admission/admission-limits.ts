@@ -19,5 +19,3 @@ export const CHALLENGE_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 export const MAX_CHALLENGE_FAILURES_PER_WINDOW = 5;
 
 export const STAFF_GRANT_DEADLINE_MS = 15 * 60 * 1000;
-
-export const MAX_REASON_LENGTH = 500;

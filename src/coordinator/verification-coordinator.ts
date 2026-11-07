@@ -28,14 +28,8 @@ import {
 } from '../ledger/session-ledger';
 import type { Store } from '../ledger/sqlite';
 import { readConfigurationStatus, readMemberStatus } from '../ledger/status-views';
-import {
-  getChannel,
-  getCurrentUserId,
-  getGuild,
-  getGuildMember,
-  getGuildRoles,
-} from '../providers/discord-rest';
-import type { ChannelSummary, RestOutcome } from '../providers/discord-rest';
+import { getChannel, getCurrentUserId, getGuild, getGuildMember } from '../providers/discord-rest';
+import type { ChannelSummary } from '../providers/discord-rest';
 import { evaluatePreflight } from './guild-preflight';
 import type { PreflightSnapshot } from './guild-preflight';
 import { deferWithBackoff } from './job-context';
@@ -96,8 +90,16 @@ export class VerificationCoordinator extends DurableObject<Env> {
     return result;
   }
 
+  // the status comes back in the same call, the page needs it right after the exchange
   exchangeEntry(input: RpcInput<typeof exchangeEntry>) {
-    return exchangeEntry(this.store, { ...input, nowMs: Date.now() });
+    const nowMs = Date.now();
+    const result = exchangeEntry(this.store, { ...input, nowMs });
+    if (result.kind !== 'created' && result.kind !== 'reused') return { ...result, status: null };
+    const digest =
+      result.kind === 'reused' && input.existingBrowserDigest !== null
+        ? input.existingBrowserDigest
+        : input.browserDigest;
+    return { ...result, status: readAttemptStatus(this.store, digest, nowMs) };
   }
 
   readStatus(browserDigest: string) {
@@ -127,8 +129,9 @@ export class VerificationCoordinator extends DurableObject<Env> {
   finalizeChallenge(input: RpcInput<typeof finalizeChallenge>) {
     const nowMs = Date.now();
     const result = finalizeChallenge(this.store, { ...input, nowMs });
-    if (result.kind === 'queued') this.armWork(nowMs);
-    return result;
+    if (result.kind !== 'queued') return result;
+    this.armWork(nowMs);
+    return { ...result, status: readAttemptStatus(this.store, input.browserDigest, nowMs) };
   }
 
   approveMember(input: RpcInput<typeof requestStaffGrant>) {
@@ -215,21 +218,34 @@ export class VerificationCoordinator extends DurableObject<Env> {
   }: JobContext): Promise<PreflightSnapshot | null> {
     const botUser = await getCurrentUserId(rest);
     if (botUser.kind !== 'ok') return null;
-    const guild = await getGuild(rest, config.guildId);
-    const roles = await getGuildRoles(rest, config.guildId);
-    const botMember = await getGuildMember(rest, config.guildId, botUser.value);
-    if (guild.kind !== 'ok' || roles.kind !== 'ok' || botMember.kind !== 'ok') return null;
+    // parallel, the deferred reply has to arrive within the waitUntil limit
+    const [guild, botMember, verificationChannel, logChannel] = await Promise.all([
+      getGuild(rest, config.guildId),
+      getGuildMember(rest, config.guildId, botUser.value),
+      getChannel(rest, config.verificationChannelId),
+      getChannel(rest, config.logChannelId),
+    ]);
+    if (guild.kind !== 'ok' || botMember.kind !== 'ok') return null;
+    // 404 or 403 = missing or hidden channel, any other failure leaves the check unanswered
+    const channels = [verificationChannel, logChannel].map(
+      (outcome): ChannelSummary | null | undefined => {
+        if (outcome.kind === 'ok') return outcome.value;
+        const refused =
+          outcome.kind === 'not_found' || (outcome.kind === 'forbidden' && outcome.status === 403);
+        return refused ? null : undefined;
+      },
+    );
+    const [verification, log] = channels;
+    if (verification === undefined || log === undefined) return null;
 
-    const channelOrNull = (outcome: RestOutcome<ChannelSummary>): ChannelSummary | null =>
-      outcome.kind === 'ok' ? outcome.value : null;
     return {
       botUserId: botUser.value,
       botRoleIds: botMember.value.roleIds,
       guildOwnerId: guild.value.ownerId,
       guildRequiresMfa: guild.value.requiresMfa,
-      roles: roles.value,
-      verificationChannel: channelOrNull(await getChannel(rest, config.verificationChannelId)),
-      logChannel: channelOrNull(await getChannel(rest, config.logChannelId)),
+      roles: guild.value.roles,
+      verificationChannel: verification,
+      logChannel: log,
     };
   }
 
@@ -294,8 +310,9 @@ export class VerificationCoordinator extends DurableObject<Env> {
   }
 
   private async runDueJobs(context: JobContext): Promise<void> {
-    if (readSettings(this.store).discord_blocked_until > Date.now()) return;
-    setDiscordBlockedUntil(this.store, 0);
+    const blockedUntil = readSettings(this.store).discord_blocked_until;
+    if (blockedUntil > Date.now()) return;
+    if (blockedUntil !== 0) setDiscordBlockedUntil(this.store, 0);
 
     for (let count = 0; count < JOBS_PER_ALARM_RUN; count += 1) {
       const job = claimDueJob(this.store, Date.now());

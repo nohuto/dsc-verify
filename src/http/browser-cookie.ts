@@ -1,6 +1,6 @@
 export const BROWSER_COOKIE_NAME = '__Host-verify';
 
-export type CookieResult =
+type CookieResult =
   | { readonly kind: 'absent' }
   | { readonly kind: 'duplicate' }
   | { readonly kind: 'value'; readonly value: string };

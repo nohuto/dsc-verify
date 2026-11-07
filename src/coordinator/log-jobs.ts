@@ -78,17 +78,23 @@ function audienceMessage(event: AuditRow, profile: LogProfile | undefined) {
   );
 }
 
-async function readProfile(context: JobContext, userId: string): Promise<LogProfile | undefined> {
-  const user = await getUser(context.rest, userId);
-  return user.kind === 'ok' ? { userId, ...user.value } : undefined;
+function needsReconcile(event: AuditRow, nowMs: number): boolean {
+  const nonceExpired = nowMs - (event.posted_at ?? nowMs) > LOG_NONCE_WINDOW_MS;
+  return event.delivery_state === 'erasing' || nonceExpired;
 }
 
 export async function runLogPostJob(context: JobContext, job: JobRow): Promise<JobRunResult> {
   const { store, config, rest } = context;
-  const queued = job.event_id === null ? null : readAuditEvent(store, job.event_id);
-  const profileId = queued?.subject_id ?? queued?.actor_id ?? null;
-  const profile = profileId === null ? undefined : await readProfile(context, profileId);
-  const event = job.event_id === null ? null : readAuditEvent(store, job.event_id);
+  let event = job.event_id === null ? null : readAuditEvent(store, job.event_id);
+  const profileId = event?.subject_id ?? event?.actor_id ?? null;
+  let profile: LogProfile | undefined;
+  if (event !== null && profileId !== null && !needsReconcile(event, context.nowMs())) {
+    const user = await getUser(rest, profileId);
+    if (user.kind === 'rate_limited') return deferForRateLimit(context, job, user);
+    if (user.kind === 'ok') profile = { userId: profileId, ...user.value };
+    // erasure can land during the lookup, so every check below reads the event after it
+    event = readAuditEvent(store, event.id);
+  }
   const nowMs = context.nowMs();
   if (event === null) {
     finishJob(store, job, { state: 'cancelled', result: 'event_gone', nowMs });
@@ -98,11 +104,7 @@ export async function runLogPostJob(context: JobContext, job: JobRow): Promise<J
   // window
   if (event.delivery_state === 'posting') setLogDeliveryState(store, event.id, 'ambiguous');
 
-  // earlier attempt may have landed or the event may be erased by now, read the channel instead of
-  // posting again
-  const firstPostedAt = event.posted_at ?? nowMs;
-  const nonceExpired = nowMs - firstPostedAt > LOG_NONCE_WINDOW_MS;
-  if (event.delivery_state === 'erasing' || nonceExpired) {
+  if (needsReconcile(event, nowMs)) {
     enqueueLogReconcile(store, event.id, nowMs);
     finishJob(store, job, { state: 'done', result: 'reconciling', nowMs });
     return 'continue';

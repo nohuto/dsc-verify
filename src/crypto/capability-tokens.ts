@@ -6,23 +6,23 @@ import {
   randomToken,
 } from './canonical-encoding';
 
-export type CapabilityPurpose = 'entry' | 'browser';
+type CapabilityPurpose = 'entry' | 'browser';
 
-export type DerivedTokenPurpose = 'csrf' | 'challenge';
+type DerivedTokenPurpose = 'csrf' | 'challenge';
 
-export type CapabilityContext = { readonly applicationId: string; readonly guildId: string };
+type CapabilityContext = { readonly applicationId: string; readonly guildId: string };
 
-export type IssuedCapability = {
+type IssuedCapability = {
   readonly envelope: string;
   readonly handle: string;
   readonly expirySeconds: number;
 };
 
-export type VerifiedCapability = { readonly handle: string; readonly expirySeconds: number };
+type VerifiedCapability = { readonly handle: string; readonly expirySeconds: number };
 
-export type CapabilityRejection = 'malformed' | 'expired' | 'invalid_mac';
+type CapabilityRejection = 'malformed' | 'expired' | 'invalid_mac';
 
-export type CapabilityResult =
+type CapabilityResult =
   | { readonly ok: true; readonly capability: VerifiedCapability }
   | { readonly ok: false; readonly reason: CapabilityRejection };
 
@@ -35,9 +35,9 @@ type MacFields = {
 };
 
 export async function importSigningKey(encoded: string): Promise<CryptoKey | null> {
-  if (!isCanonicalKeyEncoding(encoded)) return null;
+  // the decoder is canonical, 32 bytes are exactly the 43 char form
   const bytes = decodeBase64Url(encoded);
-  if (bytes === null) return null;
+  if (bytes?.length !== 32) return null;
   try {
     return await crypto.subtle.importKey('raw', bytes, { name: 'HMAC', hash: 'SHA-256' }, false, [
       'sign',

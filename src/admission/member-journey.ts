@@ -206,14 +206,10 @@ export async function handleEntryExchange(
     case 'reused':
     case 'created':
   }
+  if (exchanged.status === null) return restartResponse(410);
 
   const activeBrowser = exchanged.kind === 'reused' && existing !== null ? existing : browser;
-  const activeDigest =
-    exchanged.kind === 'reused' && existing !== null ? existing.digest : browserDigest;
-  const status = await context.coordinator.readStatus(activeDigest);
-  if (status === null) return restartResponse(410);
-
-  const response = await buildStatus(context, activeBrowser, status);
+  const response = await buildStatus(context, activeBrowser, exchanged.status);
   if (exchanged.kind === 'reused') return jsonResponse(response);
 
   const maxAgeSeconds = Math.max(0, browser.expirySeconds - Math.floor(nowMs / 1000));
@@ -358,7 +354,7 @@ export async function handleChallengeSubmit(
     case 'invalid':
       return restartResponse(410);
     case 'in_flight':
-      return statusResponse(context, browser, 202);
+      return statusResponse(context, browser, await context.coordinator.readStatus(browser.digest));
     case 'rate_limited':
       return errorResponse(429, {
         code: 'rate_limited',
@@ -391,7 +387,7 @@ export async function handleChallengeSubmit(
 
   switch (finalized.kind) {
     case 'queued':
-      return statusResponse(context, browser, 202);
+      return statusResponse(context, browser, finalized.status);
     case 'stale':
       return restartResponse(410);
     case 'unavailable':
@@ -411,12 +407,12 @@ export async function handleChallengeSubmit(
   }
 }
 
+// 202 = accepted, the outcome is still being worked on
 async function statusResponse(
   context: JourneyContext,
   browser: BrowserSession,
-  httpStatus: number,
+  status: AttemptStatus | null,
 ): Promise<Response> {
-  const status = await context.coordinator.readStatus(browser.digest);
   if (status === null) return restartResponse(410);
-  return jsonResponse(await buildStatus(context, browser, status), httpStatus);
+  return jsonResponse(await buildStatus(context, browser, status), 202);
 }

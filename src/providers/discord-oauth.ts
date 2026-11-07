@@ -1,4 +1,5 @@
 import { DISCORD_AUTHORIZE_URL } from '../../shared/browser-contract';
+import { isCanonicalKeyEncoding } from '../crypto/canonical-encoding';
 import { id, record } from './discord-fields';
 import { DISCORD_API_BASE, UPSTREAM_TIMEOUT_MS, USER_AGENT } from './discord-rest';
 
@@ -8,15 +9,15 @@ export const OAUTH_SCOPE = 'identify';
 const TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const REVOKE_URL = 'https://discord.com/api/oauth2/token/revoke';
 
-export type CallbackParams =
+type CallbackParams =
   | { readonly kind: 'success'; readonly code: string; readonly state: string }
   | { readonly kind: 'denied'; readonly state: string }
   | { readonly kind: 'invalid' };
-export type TokenOutcome =
+type TokenOutcome =
   | { readonly kind: 'ok'; readonly accessToken: string }
   | { readonly kind: 'rejected' }
   | { readonly kind: 'unavailable' };
-export type IdentityOutcome =
+type IdentityOutcome =
   | { readonly kind: 'ok'; readonly userId: string }
   | { readonly kind: 'rejected' }
   | { readonly kind: 'unavailable' };
@@ -52,9 +53,7 @@ export function parseCallback(url: URL): CallbackParams {
     if (params.getAll(key).length > 1) return { kind: 'invalid' };
   }
   const state = params.get('state');
-  // 32 bytes have two unused trailing bits in unpadded base64url
-  if (state === null || !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(state))
-    return { kind: 'invalid' };
+  if (state === null || !isCanonicalKeyEncoding(state)) return { kind: 'invalid' };
   const issuer = params.get('iss');
   if (issuer !== null && issuer !== DISCORD_ISSUER) return { kind: 'invalid' };
   const code = params.get('code');
@@ -66,11 +65,9 @@ export function parseCallback(url: URL): CallbackParams {
   return { kind: 'success', code, state };
 }
 
+// discord client IDs and secrets are ASCII
 function basicAuth(client: OAuthClient): string {
-  const bytes = new TextEncoder().encode(`${client.clientId}:${client.clientSecret}`);
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return `Basic ${btoa(binary)}`;
+  return `Basic ${btoa(`${client.clientId}:${client.clientSecret}`)}`;
 }
 
 export async function exchangeCode(
@@ -95,6 +92,12 @@ export async function exchangeCode(
       redirect: 'manual',
     });
     if (response.status >= 500) return { kind: 'unavailable' };
+    // 401 = discord refused the client credentials, every sign in fails until the secret is fixed
+    if (response.status === 401) {
+      console.error(
+        JSON.stringify({ event: 'configuration_invalid', detail: 'DISCORD_CLIENT_SECRET' }),
+      );
+    }
     if (response.status !== 200) return { kind: 'rejected' };
     const body: unknown = await response.json().catch(() => undefined);
     if (

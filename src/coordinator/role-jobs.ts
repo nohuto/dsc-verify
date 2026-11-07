@@ -20,8 +20,8 @@ import {
 import type { RestFailure } from '../providers/discord-rest';
 import { guildStaffActor, readGuildAuthority } from '../staff/guild-authority';
 import { authorizeStaffAction } from '../staff/staff-authority';
-import { deferForRateLimit, deferWithBackoff } from './job-context';
-import type { JobContext, JobRunResult } from './job-context';
+import { blockForRateLimit, deferForRateLimit, deferWithBackoff } from './job-context';
+import type { JobContext, JobRunResult, RateLimited } from './job-context';
 import {
   MAX_REMOVAL_ATTEMPTS,
   RECONCILE_DELAYS_MS,
@@ -185,7 +185,7 @@ async function applyGrant(
       });
       return 'continue';
     case 'rate_limited':
-      return deferForRateLimit(context, job, result);
+      return deferGrantForRateLimit(context, job, result);
     case 'forbidden':
       pauseForAccessFault(context, result);
       abandonGrant(store, job, { outcome: 'operator_fault', sessionState: 'blocked', nowMs });
@@ -215,14 +215,29 @@ async function finishConfirmedGrant(
 
   const { legacyRoleId, guildId } = context.config;
   if (legacyRoleId !== null && member.roleIds.includes(legacyRoleId)) {
-    await changeMemberRole(context.rest, 'DELETE', {
+    const removed = await changeMemberRole(context.rest, 'DELETE', {
       guildId,
       userId: member.userId,
       roleId: legacyRoleId,
       auditReason: LEGACY_AUDIT_REASON,
     });
+    if (removed.kind === 'rate_limited') return blockForRateLimit(context, removed);
   }
   return 'continue';
+}
+
+// a retry after the deadline could never admit
+function deferGrantForRateLimit(
+  context: JobContext,
+  job: JobRow,
+  failure: RateLimited,
+): JobRunResult {
+  const nowMs = context.nowMs();
+  if (job.deadline_at === null || nowMs + failure.retryAfterMs < job.deadline_at) {
+    return deferForRateLimit(context, job, failure);
+  }
+  abandonGrant(context.store, job, { outcome: 'expired', sessionState: 'expired', nowMs });
+  return blockForRateLimit(context, failure, nowMs);
 }
 
 function handleGrantReadFailure(
@@ -248,11 +263,7 @@ function handleGrantReadFailure(
       });
       return 'continue';
     case 'rate_limited':
-      if (job.deadline_at !== null && nowMs + failure.retryAfterMs >= job.deadline_at) {
-        abandonGrant(context.store, job, { outcome: 'expired', sessionState: 'expired', nowMs });
-        return failure.scope === 'route' || failure.scope === 'shared' ? 'continue' : 'stop_batch';
-      }
-      return deferForRateLimit(context, job, failure);
+      return deferGrantForRateLimit(context, job, failure);
     case 'rejected':
     case 'unavailable':
     case 'uncertain':
@@ -419,14 +430,21 @@ async function mayRestoreGrant(
   context: JobContext,
   member: MemberSnapshot,
   intent: RoleIntent | null,
-): Promise<boolean> {
+): Promise<boolean | RateLimited> {
   const { store, config } = context;
   if (intent === null) return false;
   const grant = readLatestGrant(store, member.userId, intent.revision);
   if (grant === null) return false;
+  let snapshot = member;
   if (grant.actorId !== null) {
     const authority = await checkApproverAuthority(context, grant.actorId);
-    if (authority !== 'allowed') return false;
+    if (authority === 'denied') return false;
+    if (authority !== 'allowed') return authority.kind === 'rate_limited' ? authority : false;
+    // the member may have been restricted during the authority check
+    const fresh = await getGuildMember(context.rest, config.guildId, member.userId);
+    if (fresh.kind === 'rate_limited') return fresh;
+    if (fresh.kind !== 'ok') return false;
+    snapshot = fresh.value;
   }
 
   // reset or erasure may have landed during the authority check
@@ -434,7 +452,7 @@ async function mayRestoreGrant(
   if (latest === null || latest.revision !== intent.revision) return false;
   if (readLatestGrant(store, member.userId, intent.revision) === null) return false;
   const decision = decideAdmission({
-    member,
+    member: snapshot,
     accessRoleId: config.memberRoleId,
     punitiveRoleIds: config.punitiveRoleIds,
     paused: readSettings(store).paused !== 0,
@@ -477,8 +495,10 @@ export async function runReconcileJob(context: JobContext, job: JobRow): Promise
   if (desired === null) return advanceReconcile(context, job, !hasRole);
   if (hasRole === (desired === 'present')) return advanceReconcile(context, job, true);
 
-  if (desired === 'present' && !(await mayRestoreGrant(context, member, intent))) {
-    return advanceReconcile(context, job, false);
+  if (desired === 'present') {
+    const restore = await mayRestoreGrant(context, member, intent);
+    if (restore === false) return advanceReconcile(context, job, false);
+    if (restore !== true) return deferForRateLimit(context, job, restore);
   }
 
   // compensation happens only after the fresh membership, join and latest-intent checks above
@@ -491,6 +511,7 @@ export async function runReconcileJob(context: JobContext, job: JobRow): Promise
   if (compensation.kind === 'rate_limited') return deferForRateLimit(context, job, compensation);
 
   const observed = await getGuildMember(rest, config.guildId, userId);
+  if (observed.kind === 'rate_limited') return deferForRateLimit(context, job, observed);
   const matches =
     observed.kind === 'ok' && hasAccessRole(context, observed.value) === (desired === 'present');
   return advanceReconcile(context, job, matches);

@@ -50,14 +50,12 @@ export type ConfigurationStatus = {
 
 export function readConfigurationStatus(store: Store): ConfigurationStatus {
   const settings = readSettings(store);
-  const queue = selectOne<{ queued: number; oldest: number | null }>(
+  const jobs = selectOne<{ queued: number; oldest: number | null; unresolved: number }>(
     store,
-    `SELECT count(*) AS queued, min(next_run_at) AS oldest FROM jobs
-     WHERE state IN ('queued', 'running')`,
-  );
-  const unresolved = selectOne<{ total: number }>(
-    store,
-    `SELECT count(*) AS total FROM jobs WHERE state = 'unresolved'`,
+    `SELECT count(*) FILTER (WHERE state IN ('queued', 'running')) AS queued,
+       min(next_run_at) FILTER (WHERE state IN ('queued', 'running')) AS oldest,
+       count(*) FILTER (WHERE state = 'unresolved') AS unresolved
+     FROM jobs`,
   );
   const logs = selectOne<{ total: number }>(
     store,
@@ -66,9 +64,9 @@ export function readConfigurationStatus(store: Store): ConfigurationStatus {
   return {
     paused: settings.paused !== 0,
     pauseReason: settings.pause_reason,
-    queuedJobs: queue?.queued ?? 0,
-    oldestDueAtMs: queue?.oldest ?? null,
-    unresolvedJobs: unresolved?.total ?? 0,
+    queuedJobs: jobs?.queued ?? 0,
+    oldestDueAtMs: jobs?.oldest ?? null,
+    unresolvedJobs: jobs?.unresolved ?? 0,
     unresolvedLogEvents: logs?.total ?? 0,
     panelConfigured: settings.panel_message_id !== null,
   };

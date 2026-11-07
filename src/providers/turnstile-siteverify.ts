@@ -5,11 +5,11 @@ export const TURNSTILE_ACTION = 'discord_verify';
 export const TURNSTILE_TOKEN_MAX_LENGTH = 2048;
 export const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
-export type ChallengeExpectation = {
+type ChallengeExpectation = {
   readonly hostname: string;
   readonly cdata: string;
 };
-export type SiteverifyOutcome =
+type SiteverifyOutcome =
   | { readonly kind: 'passed' }
   | { readonly kind: 'failed'; readonly reason: 'rejected' | 'context_mismatch' }
   | { readonly kind: 'unavailable' };
@@ -66,16 +66,16 @@ export async function verifyChallenge(options: {
     const errors = result['error-codes'];
     if (!Array.isArray(errors) || !errors.every((code: unknown) => typeof code === 'string'))
       return { kind: 'unavailable' };
-    if (
-      errors.some(
-        (code: unknown) =>
-          code === 'internal-error' ||
-          code === 'missing-input-secret' ||
-          code === 'invalid-input-secret' ||
-          code === 'bad-request',
-      )
-    )
+    // a wrong secret fails every member, only the operator can fix it
+    if (errors.some((code) => code === 'missing-input-secret' || code === 'invalid-input-secret')) {
+      console.error(
+        JSON.stringify({ event: 'configuration_invalid', detail: 'TURNSTILE_SECRET_KEY' }),
+      );
       return { kind: 'unavailable' };
+    }
+    if (errors.some((code) => code === 'internal-error' || code === 'bad-request')) {
+      return { kind: 'unavailable' };
+    }
     return { kind: 'failed', reason: 'rejected' };
   } catch {
     return { kind: 'unavailable' };

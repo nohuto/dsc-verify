@@ -1,9 +1,9 @@
-import { getGuild, getGuildRoles } from '../providers/discord-rest';
+import { getGuild } from '../providers/discord-rest';
 import type { RestContext, RestOutcome } from '../providers/discord-rest';
 import { computeGuildPermissions } from './staff-authority';
 import type { RolePermission, StaffActor } from './staff-authority';
 
-export type GuildAuthority = {
+type GuildAuthority = {
   readonly guildId: string;
   readonly ownerId: string;
   readonly roles: readonly RolePermission[];
@@ -13,10 +13,9 @@ export async function readGuildAuthority(
   rest: RestContext,
   guildId: string,
 ): Promise<RestOutcome<GuildAuthority>> {
-  const [guild, roles] = await Promise.all([getGuild(rest, guildId), getGuildRoles(rest, guildId)]);
+  const guild = await getGuild(rest, guildId);
   if (guild.kind !== 'ok') return guild;
-  if (roles.kind !== 'ok') return roles;
-  return { kind: 'ok', value: { guildId, ownerId: guild.value.ownerId, roles: roles.value } };
+  return { kind: 'ok', value: { guildId, ownerId: guild.value.ownerId, roles: guild.value.roles } };
 }
 
 export function guildStaffActor(

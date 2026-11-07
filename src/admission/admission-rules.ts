@@ -34,14 +34,14 @@ export type AdmissionBlockReason =
   | 'generation_changed'
   | 'expired';
 
-export type AdmissionDecision =
+type AdmissionDecision =
   | { readonly outcome: 'admit' }
   | { readonly outcome: 'already_admitted' }
   | { readonly outcome: 'too_young'; readonly eligibleAtMs: number }
   | { readonly outcome: 'blocked'; readonly reason: AdmissionBlockReason };
 
 // set once admission work was accepted, later snapshots are compared against it
-export type AdmissionBinding = {
+type AdmissionBinding = {
   readonly joinedAtMs: number;
   readonly generation: number;
   readonly currentGeneration: number;

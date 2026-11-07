@@ -27,13 +27,17 @@ export type RestOutcome<T> = { readonly kind: 'ok'; readonly value: T } | RestFa
 
 export type RestContext = { readonly botToken: string; readonly timeoutMs?: number };
 
-export type GuildSummary = { readonly ownerId: string; readonly requiresMfa: boolean };
-
 export type RoleSummary = {
   readonly id: string;
   readonly position: number;
   readonly permissions: bigint;
   readonly managed: boolean;
+};
+
+type GuildSummary = {
+  readonly ownerId: string;
+  readonly requiresMfa: boolean;
+  readonly roles: readonly RoleSummary[];
 };
 
 export type ChannelOverwrite = {
@@ -50,7 +54,7 @@ export type ChannelSummary = {
   readonly overwrites: readonly ChannelOverwrite[];
 };
 
-export type UserProfile = { readonly username: string; readonly avatar: string | null };
+type UserProfile = { readonly username: string; readonly avatar: string | null };
 
 export type ChannelMessage = {
   readonly id: string;
@@ -58,11 +62,10 @@ export type ChannelMessage = {
   readonly marker: string | null;
 };
 
-export type DiscordMessagePayload = {
+type DiscordMessagePayload = {
   readonly content?: string;
   readonly embeds?: readonly unknown[];
   readonly components?: readonly unknown[];
-  readonly flags?: number;
 };
 
 function pathId(value: string): string {
@@ -90,7 +93,13 @@ async function json(response: Response): Promise<unknown> {
   }
 }
 
+// an unread body holds memory until it is collected
+async function discardBody(response: Response): Promise<void> {
+  await response.body?.cancel().catch(() => undefined);
+}
+
 async function restFailure(response: Response, mutation: boolean): Promise<RestFailure> {
+  if (response.status !== 404 && response.status !== 429) await discardBody(response);
   if (response.status >= 300 && response.status < 400)
     return mutation ? { kind: 'rejected', status: response.status } : { kind: 'unavailable' };
   if (response.status >= 500) return { kind: mutation ? 'uncertain' : 'unavailable' };
@@ -159,6 +168,7 @@ async function botRequest<T>(
     });
     if (!response.ok) return await restFailure(response, mutation);
     if (noContent !== undefined) {
+      await discardBody(response);
       if (response.status !== 200 && response.status !== 204) return { kind: 'malformed' };
       return { kind: 'ok', value: noContent.value };
     }
@@ -212,11 +222,14 @@ export function getGuild(
   context: RestContext,
   guildId: string,
 ): Promise<RestOutcome<GuildSummary>> {
-  return botRequest(context, `/guilds/${pathId(guildId)}`, 'GET', (value) =>
-    record(value) && id(value['owner_id'])
-      ? { ownerId: value['owner_id'], requiresMfa: value['mfa_level'] === 1 }
-      : null,
-  );
+  // the guild object carries its roles, no separate roles request needed
+  return botRequest(context, `/guilds/${pathId(guildId)}`, 'GET', (value) => {
+    if (!record(value) || !id(value['owner_id'])) return null;
+    const roles = decodeRoles(value['roles']);
+    return roles === null
+      ? null
+      : { ownerId: value['owner_id'], requiresMfa: value['mfa_level'] === 1, roles };
+  });
 }
 
 function decodeRoles(value: unknown): readonly RoleSummary[] | null {
@@ -242,13 +255,6 @@ function decodeRoles(value: unknown): readonly RoleSummary[] | null {
     });
   }
   return roles;
-}
-
-export function getGuildRoles(
-  context: RestContext,
-  guildId: string,
-): Promise<RestOutcome<readonly RoleSummary[]>> {
-  return botRequest(context, `/guilds/${pathId(guildId)}/roles`, 'GET', decodeRoles);
 }
 
 function decodeChannel(value: unknown): ChannelSummary | null {
@@ -312,7 +318,6 @@ function messageBody(payload: DiscordMessagePayload): Record<string, unknown> {
     ...(payload.content === undefined ? {} : { content: payload.content }),
     ...(payload.embeds === undefined ? {} : { embeds: payload.embeds }),
     ...(payload.components === undefined ? {} : { components: payload.components }),
-    ...(payload.flags === undefined ? {} : { flags: payload.flags }),
     allowed_mentions: { parse: [] },
   };
 }

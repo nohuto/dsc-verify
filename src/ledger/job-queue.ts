@@ -71,7 +71,8 @@ export function hasOpenEventJob(
 ): boolean {
   const open = selectOne<{ id: string }>(
     store,
-    `SELECT id FROM jobs WHERE event_id = ? AND id IS NOT ? AND state IN ('queued', 'running')`,
+    `SELECT id FROM jobs
+     WHERE event_id = ? AND id IS NOT ? AND state IN ('queued', 'running') LIMIT 1`,
     eventId,
     exceptJobId,
   );
@@ -207,7 +208,7 @@ function finishErasure(store: Store, userId: string, jobId: string): void {
   execute(store, 'DELETE FROM jobs WHERE id = ?', jobId);
   const remaining = selectOne<{ id: string }>(
     store,
-    `SELECT id FROM jobs WHERE user_id = ? AND state IN ('queued', 'running')`,
+    `SELECT id FROM jobs WHERE user_id = ? AND state IN ('queued', 'running') LIMIT 1`,
     userId,
   );
   if (remaining !== undefined) return;

@@ -22,7 +22,8 @@ function hasUncertainRoleMutation(store: Store, userId: string): boolean {
     `SELECT id FROM jobs
      WHERE user_id = ? AND kind IN ('grant', 'remove')
        AND mutation_state IN ('in_flight', 'uncertain')
-       AND state IN ('queued', 'running')`,
+       AND state IN ('queued', 'running')
+     LIMIT 1`,
     userId,
   );
   return pending !== undefined;

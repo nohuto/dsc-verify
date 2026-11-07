@@ -16,7 +16,7 @@ export type JobContext = {
 
 export type JobRunResult = 'continue' | 'stop_batch';
 
-type RateLimited = Extract<RestFailure, { kind: 'rate_limited' }>;
+export type RateLimited = Extract<RestFailure, { kind: 'rate_limited' }>;
 
 // 429 = request wasnt processed, doesnt count as an attempt, global and edge limits hit every
 // route, the run stops instead of collecting more 429s
@@ -26,13 +26,22 @@ export function deferForRateLimit(
   failure: RateLimited,
 ): JobRunResult {
   const nowMs = context.nowMs();
-  const nextRunAt = nowMs + failure.retryAfterMs;
-  rescheduleJob(context.store, job, { nextRunAt, countAttempt: false, nowMs });
-  if (failure.scope === 'global' || failure.scope === 'edge') {
-    setDiscordBlockedUntil(context.store, nextRunAt);
-    return 'stop_batch';
-  }
-  return 'continue';
+  rescheduleJob(context.store, job, {
+    nextRunAt: nowMs + failure.retryAfterMs,
+    countAttempt: false,
+    nowMs,
+  });
+  return blockForRateLimit(context, failure, nowMs);
+}
+
+export function blockForRateLimit(
+  context: JobContext,
+  failure: RateLimited,
+  nowMs = context.nowMs(),
+): JobRunResult {
+  if (failure.scope !== 'global' && failure.scope !== 'edge') return 'continue';
+  setDiscordBlockedUntil(context.store, nowMs + failure.retryAfterMs);
+  return 'stop_batch';
 }
 
 export function deferWithBackoff(context: JobContext, job: JobRow): JobRunResult {

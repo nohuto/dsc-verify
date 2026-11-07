@@ -3,9 +3,9 @@ import { jsonResponse } from '../http/secure-responses';
 const INTERACTION_PONG = 1;
 const CHANNEL_MESSAGE_WITH_SOURCE = 4;
 const DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE = 5;
-export const EPHEMERAL_FLAG = 1 << 6;
+const EPHEMERAL_FLAG = 1 << 6;
 
-export type ReplyData = {
+type ReplyData = {
   readonly content: string;
   readonly components?: readonly unknown[];
 };

@@ -451,7 +451,11 @@ export function claimSubmission(
   return store.transactionSync(() => {
     const { nowMs } = input;
     const found = selectAttempt(store, input.browserDigest);
-    if (found === undefined || !isSessionLive(found.session, nowMs)) return { kind: 'invalid' };
+    if (found === undefined) return { kind: 'invalid' };
+    // a browser resends a submit whose reply was lost
+    const settled = found.session.state === 'grant_queued' || found.session.state === 'verified';
+    if (settled) return { kind: 'in_flight' };
+    if (!isSessionLive(found.session, nowMs)) return { kind: 'invalid' };
     const { attempt, session } = found;
     if (attempt.identity_confirmed === 0) return { kind: 'invalid' };
     if (session.state === 'awaiting_oauth') return { kind: 'invalid' };
@@ -484,8 +488,10 @@ export function claimSubmission(
     execute(
       store,
       `UPDATE attempts SET submission_claim_id = NULL, submission_claim_expires_at = NULL
-       WHERE session_id = ?`,
+       WHERE session_id = ? AND id <> ?
+         AND (submission_claim_id IS NOT NULL OR submission_claim_expires_at IS NOT NULL)`,
       session.id,
+      attempt.id,
     );
     execute(
       store,
@@ -537,14 +543,13 @@ export function finalizeChallenge(
       member.generation === session.generation &&
       session.expires_at > nowMs;
 
-    execute(
-      store,
-      `UPDATE attempts SET submission_claim_id = NULL, submission_claim_expires_at = NULL
-       WHERE id = ?`,
-      attempt.id,
-    );
-
     if (!isCurrent) {
+      execute(
+        store,
+        `UPDATE attempts SET submission_claim_id = NULL, submission_claim_expires_at = NULL
+         WHERE id = ?`,
+        attempt.id,
+      );
       execute(store, `UPDATE sessions SET state = 'expired' WHERE id = ?`, session.id);
       return { kind: 'stale' };
     }
@@ -553,7 +558,9 @@ export function finalizeChallenge(
       execute(store, `UPDATE sessions SET state = 'awaiting_challenge' WHERE id = ?`, session.id);
       execute(
         store,
-        `UPDATE attempts SET challenge_outcome = 'challenge_unavailable' WHERE id = ?`,
+        `UPDATE attempts SET challenge_outcome = 'challenge_unavailable',
+           submission_claim_id = NULL, submission_claim_expires_at = NULL
+         WHERE id = ?`,
         attempt.id,
       );
       return { kind: 'unavailable' };
@@ -572,7 +579,8 @@ export function finalizeChallenge(
       execute(
         store,
         `UPDATE attempts SET challenge_outcome = 'challenge_failed',
-           submission_token_digest = NULL, submission_idempotency_key = NULL
+           submission_token_digest = NULL, submission_idempotency_key = NULL,
+           submission_claim_id = NULL, submission_claim_expires_at = NULL
          WHERE id = ?`,
         attempt.id,
       );
@@ -583,7 +591,8 @@ export function finalizeChallenge(
     execute(store, `UPDATE sessions SET state = 'grant_queued' WHERE id = ?`, session.id);
     execute(
       store,
-      `UPDATE attempts SET submission_token_digest = NULL, submission_idempotency_key = NULL
+      `UPDATE attempts SET submission_token_digest = NULL, submission_idempotency_key = NULL,
+         submission_claim_id = NULL, submission_claim_expires_at = NULL
        WHERE id = ?`,
       attempt.id,
     );
@@ -621,7 +630,9 @@ export function cancelOpenSessions(store: Store, userId: string): void {
      SET state_digest = NULL, pkce_verifier = NULL, state_expires_at = NULL,
          oauth_claim_id = NULL, oauth_claim_expires_at = NULL,
          submission_claim_id = NULL, submission_claim_expires_at = NULL
-     WHERE session_id IN (SELECT id FROM sessions WHERE user_id = ?)`,
+     WHERE session_id IN (SELECT id FROM sessions WHERE user_id = ?)
+       AND COALESCE(state_digest, pkce_verifier, state_expires_at, oauth_claim_id,
+         oauth_claim_expires_at, submission_claim_id, submission_claim_expires_at) IS NOT NULL`,
     userId,
   );
   execute(

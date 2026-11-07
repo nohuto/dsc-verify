@@ -87,9 +87,19 @@ export default {
   async fetch(request, env, execution): Promise<Response> {
     try {
       return await route(request, env, execution);
-    } catch {
+    } catch (error) {
+      // only the platforms bool flags or the error name, never the message
+      const cause =
+        error instanceof Error
+          ? (['overloaded', 'retryable', 'remote'].find(
+              (flag) => Reflect.get(error, flag) === true,
+            ) ?? error.name)
+          : 'unknown';
       console.error(
-        JSON.stringify({ event: 'request_failed', detail: new URL(request.url).pathname }),
+        JSON.stringify({
+          event: 'request_failed',
+          detail: `${new URL(request.url).pathname} ${cause}`,
+        }),
       );
       return unavailableResponse();
     }

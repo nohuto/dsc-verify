@@ -2,11 +2,11 @@ export const MAX_DISCORD_BODY_BYTES = 64 * 1024;
 
 export const MAX_BROWSER_BODY_BYTES = 8 * 1024;
 
-export type BodyResult =
+type BodyResult =
   | { readonly ok: true; readonly bytes: Uint8Array }
   | { readonly ok: false; readonly reason: 'too_large' | 'unreadable' };
 
-export type JsonResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
+type JsonResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
 
 export async function readBoundedBody(request: Request, maxBytes: number): Promise<BodyResult> {
   const length = request.headers.get('Content-Length')?.trim();

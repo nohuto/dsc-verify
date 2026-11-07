@@ -6,7 +6,6 @@ import {
   getCurrentUserId,
   getGuild,
   getGuildMember,
-  getGuildRoles,
 } from '../src/providers/discord-rest.ts';
 import type { ChannelSummary, RestContext, RestOutcome } from '../src/providers/discord-rest.ts';
 import { evaluatePreflight, hasPreflightErrors } from '../src/coordinator/guild-preflight.ts';
@@ -44,7 +43,6 @@ const context: RestContext = { botToken: config.discordBotToken };
 
 const botUserId = unwrap('GET /users/@me', await getCurrentUserId(context));
 const guild = unwrap('GET /guilds/{id}', await getGuild(context, config.guildId));
-const roles = unwrap('GET /guilds/{id}/roles', await getGuildRoles(context, config.guildId));
 const botMember = unwrap(
   'GET /guilds/{id}/members/{bot}',
   await getGuildMember(context, config.guildId, botUserId),
@@ -61,7 +59,7 @@ const findings = evaluatePreflight(config, {
   botRoleIds: botMember.roleIds,
   guildOwnerId: guild.ownerId,
   guildRequiresMfa: guild.requiresMfa,
-  roles,
+  roles: guild.roles,
   verificationChannel,
   logChannel,
 });

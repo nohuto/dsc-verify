@@ -98,26 +98,27 @@ function eraseAuditEvent(
 // retained
 export function runCleanup(store: Store, nowMs: number, batchSize: number): boolean {
   return store.transactionSync(() => {
-    execute(
-      store,
-      `UPDATE sessions SET state = 'expired'
-       WHERE expires_at <= ? AND state IN ('awaiting_oauth', 'awaiting_challenge', 'validating')`,
-      nowMs,
-    );
+    // one scan of the open jobs
     execute(
       store,
       `DELETE FROM sessions
        WHERE id IN (
-         SELECT sessions.id FROM sessions
-         WHERE sessions.expires_at <= ?
-           AND NOT EXISTS (
-             SELECT 1 FROM jobs
-             WHERE jobs.session_id = sessions.id AND jobs.state IN ('queued', 'running')
+         SELECT id FROM sessions
+         WHERE expires_at <= ?
+           AND id NOT IN (
+             SELECT session_id FROM jobs
+             WHERE session_id IS NOT NULL AND state IN ('queued', 'running')
            )
          LIMIT ?
        )`,
       nowMs,
       batchSize,
+    );
+    execute(
+      store,
+      `UPDATE sessions SET state = 'expired'
+       WHERE expires_at <= ? AND state IN ('awaiting_oauth', 'awaiting_challenge', 'validating')`,
+      nowMs,
     );
     execute(
       store,
